@@ -6,18 +6,29 @@ const app = express();
 app.use(express.json());
 
 // Create Table
-const initDB = async () => {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS applications (
-      id SERIAL PRIMARY KEY,
-      company VARCHAR(100) NOT NULL,
-      position VARCHAR(100) NOT NULL,
-      status VARCHAR(50) DEFAULT 'applied' CHECK (status IN ('applied', 'rejected', 'interviewing', 'offer', 'assessment')),
-      applied_date DATE DEFAULT CURRENT_DATE,
-      location VARCHAR(100),
-      notes TEXT
-    )
-  `);
+const initDB = async (retries = 5) => {
+  while (retries > 0) {
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS applications (
+          id SERIAL PRIMARY KEY,
+          company VARCHAR(100) NOT NULL,
+          position VARCHAR(100) NOT NULL,
+          status VARCHAR(50) DEFAULT 'applied' CHECK (status IN ('applied', 'rejected', 'interviewing', 'offer', 'assessment')),
+          applied_date DATE DEFAULT CURRENT_DATE,
+          location VARCHAR(100),
+          notes TEXT
+        )
+      `);
+      console.log('DB connected!');
+      return;
+    } catch (err) {
+      retries--;
+      console.log(`DB connection failed. Retrying... (${retries} left)`);
+      await new Promise(res => setTimeout(res, 3000));
+    }
+  }
+  throw new Error('Could not connect to DB');
 };
 
 // GET - list of applications
